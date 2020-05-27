@@ -1,6 +1,7 @@
 module Dropdown exposing (view)
 
-import Element exposing (Attribute, Element, centerX, clip, column, el, fill, height, padding, paddingXY, px, rgb255, spacing, width)
+import AssocList as Dict exposing (Dict)
+import Element exposing (Attribute, Element, centerX, clip, column, el, fill, height, px, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -9,8 +10,8 @@ import Element.Input exposing (Label(..), button)
 import Theme exposing (Theme)
 
 
-dropdownItem : Theme -> String -> (String -> msg) -> ( String, Element msg ) -> Element msg
-dropdownItem theme selected selectionMsg ( value, label ) =
+dropdownItem : Theme -> key -> (key -> msg) -> key -> Element msg -> Element msg
+dropdownItem theme selected selectionMsg value label =
     let
         attrs =
             if value == selected then
@@ -24,7 +25,7 @@ dropdownItem theme selected selectionMsg ( value, label ) =
         { onPress = Just (selectionMsg value), label = label }
 
 
-autoCompleteDropdown : Theme -> String -> (String -> msg) -> List ( String, Element msg ) -> Element msg
+autoCompleteDropdown : Theme -> key -> (key -> msg) -> Dict key (Element msg) -> Element msg
 autoCompleteDropdown theme selected selectionMsg options =
     column
         [ width fill
@@ -33,11 +34,11 @@ autoCompleteDropdown theme selected selectionMsg options =
         , Background.color (Theme.backgroundColor theme)
         , clip
         ]
-        (List.map (dropdownItem theme selected selectionMsg) options)
+        (Dict.values (Dict.map (dropdownItem theme selected selectionMsg) options))
 
 
-view : Theme -> (Bool -> msg) -> (String -> msg) -> Bool -> String -> Element msg -> List ( String, Element msg ) -> Element msg
-view theme setDropdownVisibility setSelection focused selectedValue selectedDisplay options =
+view : Theme -> (Bool -> msg) -> (key -> msg) -> Bool -> key -> Dict key (Element msg) -> Element msg
+view theme setDropdownVisibility setSelection focused selectedValue options =
     let
         outerAttrs =
             (if focused then
@@ -66,4 +67,10 @@ view theme setDropdownVisibility setSelection focused selectedValue selectedDisp
     in
     el
         outerAttrs
-        (button innerAttrs { onPress = Just (setDropdownVisibility True), label = selectedDisplay })
+        (button innerAttrs
+            { onPress = Just (setDropdownVisibility True)
+            , label =
+                Dict.get selectedValue options
+                    |> Maybe.withDefault Element.none
+            }
+        )

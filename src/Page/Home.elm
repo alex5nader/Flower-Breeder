@@ -3,7 +3,7 @@ module Page.Home exposing (Model, Msg, init, subscriptions, toSession, update, v
 import Asset.Image as Image
 import AssocList as Dict exposing (Dict)
 import Dropdown
-import Element exposing (Element, centerX, centerY, clip, column, el, fill, fillPortion, height, maximum, padding, paddingEach, paddingXY, px, rgb, row, scrollbarY, spacing, text, width, wrappedRow)
+import Element exposing (Element, centerX, centerY, clip, column, el, fill, fillPortion, height, maximum, padding, paddingEach, px, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -47,7 +47,7 @@ type BreedingResultDisplayMode
 
 type alias Model =
     { session : Session
-    , maybeKind : Maybe FlowerKind
+    , kind : FlowerKind
     , kindDropdownVisible : Bool
     , genesA : Dict FlowerKind DominantList
     , genesB : Dict FlowerKind DominantList
@@ -68,7 +68,7 @@ init session =
             ( kind, List.repeat (Flower.getGeneCount kind) One )
     in
     ( { session = session
-      , maybeKind = Just Rose
+      , kind = Rose
       , kindDropdownVisible = False
       , genesA = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , genesB = Dict.fromList (List.map toPair Flower.Kind.allKinds)
@@ -80,7 +80,7 @@ init session =
 
 
 type Msg
-    = SetKind String
+    = SetKind FlowerKind
     | SetKindDropdownVisibility Bool
     | SetGenesA FlowerKind DominantList
     | SetGenesB FlowerKind DominantList
@@ -91,13 +91,9 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        SetKind kindStr ->
-            let
-                maybeKind =
-                    Flower.Kind.fromString kindStr
-            in
+        SetKind kind ->
             ( { model
-                | maybeKind = maybeKind
+                | kind = kind
                 , kindDropdownVisible = False
               }
             , Cmd.none
@@ -233,30 +229,15 @@ viewKind colorsToUse kind =
 view : Theme -> Model -> Page.Data Msg
 view theme model =
     let
-        kindFieldLabel =
-            model.maybeKind
-                |> Maybe.map (viewKind model.colorsToUse)
-                |> Maybe.withDefault Element.none
-
-        kindFieldValue =
-            model.maybeKind
-                |> Maybe.map Flower.Kind.toString
-                |> Maybe.withDefault ""
-
         kindPair kind =
-            ( Flower.Kind.toString kind
+            ( kind
             , viewKind model.colorsToUse kind
             )
 
         maybeFlower genesDict =
-            case model.maybeKind of
-                Just kind ->
-                    case Dict.get kind genesDict of
-                        Just genes ->
-                            Just (Flower kind genes)
-
-                        _ ->
-                            Nothing
+            case Dict.get model.kind genesDict of
+                Just genes ->
+                    Just (Flower model.kind genes)
 
                 _ ->
                     Nothing
@@ -268,7 +249,7 @@ view theme model =
             maybeFlower model.genesB
 
         dropdownOptions =
-            List.map kindPair Flower.Kind.allKinds
+            Dict.fromList (List.reverse (List.map kindPair Flower.Kind.allKinds))
     in
     { title = "Breeder"
     , content =
@@ -276,7 +257,7 @@ view theme model =
             column [ width fill, height fill, centerX, spacing 15 ]
                 [ row [ centerX, spacing 15 ]
                     [ el [] (text "Select a flower")
-                    , Dropdown.view theme SetKindDropdownVisibility SetKind model.kindDropdownVisible kindFieldValue kindFieldLabel dropdownOptions
+                    , Dropdown.view theme SetKindDropdownVisibility SetKind model.kindDropdownVisible model.kind dropdownOptions
                     ]
                 , row [ centerX, spacing 45 ]
                     [ maybeViewGenePicker theme SetGenesA maybeFlowerA
