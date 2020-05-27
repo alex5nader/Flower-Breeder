@@ -139,9 +139,9 @@ maybeViewGenePicker theme setGenesToKind maybeFlower =
         viewGeneSelect : (DominantList -> Msg) -> DominantList -> Element Msg
         viewGeneSelect setGenes genes =
             let
-                listWith : String -> Int -> a -> List a -> List a
-                listWith label pos item list =
-                    Debug.log ("just finished" ++ label) (List.take pos list ++ [ item ] ++ List.drop (pos + 1) list)
+                listWith : Int -> a -> List a -> List a
+                listWith pos item list =
+                    List.take pos list ++ [ item ] ++ List.drop (pos + 1) list
 
                 viewOption : Int -> DominantCount -> DominantCount -> Element Msg
                 viewOption i actual label =
@@ -155,7 +155,7 @@ maybeViewGenePicker theme setGenesToKind maybeFlower =
                             )
                                 ++ [ paddingEach { top = 5, left = 5, right = 5, bottom = 0 }, width (fillPortion 1), height (fillPortion 1) ]
                     in
-                    el [ clip, width (fillPortion 1) ] (button attrs { onPress = Just (setGenes (listWith (String.fromInt i) i label genes)), label = text (Genetics.toString label) })
+                    el [ clip, width (fillPortion 1) ] (button attrs { onPress = Just (setGenes (listWith i label genes)), label = text (Genetics.toString label) })
 
                 viewColumn : Int -> DominantCount -> Element Msg
                 viewColumn i actual =

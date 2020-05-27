@@ -16,7 +16,6 @@ module Flower exposing
     )
 
 import AssocList as Dict exposing (Dict)
-import Debug exposing (log)
 import Flower.Color exposing (FlowerColor(..))
 import Flower.Kind exposing (FlowerKind(..))
 import Genetics exposing (DominantCount(..), DominantList)
