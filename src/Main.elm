@@ -70,7 +70,7 @@ init flagsValue url navKey =
                         (Decode.field "windowSize" WindowSize.decoder)
             in
             Decode.decodeValue rootDecoder flagsValue
-                |> Result.map (Tuple.mapFirst (Maybe.map (Decode.decodeString Settings.decoder) >> Maybe.withDefault (Ok Settings.default) ))
+                |> Result.map (Tuple.mapFirst (Maybe.map (Decode.decodeString Settings.decoder) >> Maybe.withDefault (Ok Settings.default)))
                 |> Result.withDefault ( Ok Settings.default, WindowSize 0 0 )
                 |> Tuple.mapFirst (Result.withDefault Settings.default)
     in
