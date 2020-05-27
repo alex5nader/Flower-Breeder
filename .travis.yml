@@ -28,3 +28,13 @@ install:
 script:
   - elm-format --validate .
 #  - elm-test
+
+deploy:
+  local_dir: ./dist
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep_history: true
+  on:
+    branch:
+      master
