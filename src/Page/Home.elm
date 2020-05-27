@@ -18,7 +18,6 @@ import Page
 import Random exposing (Generator)
 import Random.List
 import Session exposing (Session)
-import TabSwitcher
 import Theme exposing (Theme)
 
 
@@ -41,26 +40,39 @@ flowerKindGenerator kinds =
         |> Random.map Dict.fromList
 
 
-type FlowerTab
-    = Manual
-    | Shop
-    | Island
-
-
 type BreedingResultDisplayMode
     = ByGenes
     | ByColor
 
 
+type FlowerSelectionData
+    = Preset Flower
+    | Custom Flower
+
+
+getFlowerSelectionDataKind data =
+    case data of
+        Preset f ->
+            f.kind
+
+        Custom f ->
+            f.kind
+
+
+getFlowerSelectionDataGenes data =
+    case data of
+        Preset f ->
+            f.genes
+
+        Custom f ->
+            f.genes
+
+
 type alias Model =
     { session : Session
     , kindData : Dropdown.Model FlowerKind
-    , flowerTabA : TabSwitcher.Model FlowerTab
-    , flowerTabB : TabSwitcher.Model FlowerTab
-    , shopDropdownModelA : Dropdown.Model Flower
-    , shopDropdownModelB : Dropdown.Model Flower
-    , islandDropdownModelA : Dropdown.Model Flower
-    , islandDropdownModelB : Dropdown.Model Flower
+    , dropdownModelA : Dropdown.Model FlowerSelectionData
+    , dropdownModelB : Dropdown.Model FlowerSelectionData
     , genesA : Dict FlowerKind DominantList
     , genesB : Dict FlowerKind DominantList
     , colorsToUse : Dict FlowerKind (Maybe FlowerColor)
@@ -76,17 +88,17 @@ toSession model =
 init : Session -> ( Model, Cmd Msg )
 init session =
     let
+        defaultFlower kind =
+            -- can never fail
+            Flower kind (List.repeat (Flower.getGeneCount kind) Zero)
+
         toPair kind =
-            ( kind, List.repeat (Flower.getGeneCount kind) One )
+            ( kind, (defaultFlower kind).genes )
     in
     ( { session = session
       , kindData = Dropdown.init Rose
-      , flowerTabA = TabSwitcher.init Manual
-      , flowerTabB = TabSwitcher.init Manual
-      , shopDropdownModelA = Dropdown.init (Flower.getSeedFlower Rose Red |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
-      , shopDropdownModelB = Dropdown.init (Flower.getSeedFlower Rose Red |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
-      , islandDropdownModelA = Dropdown.init (Flower.getIslandFlower Rose Pink |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
-      , islandDropdownModelB = Dropdown.init (Flower.getIslandFlower Rose Pink |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
+      , dropdownModelA = Dropdown.init (Preset (defaultFlower Rose))
+      , dropdownModelB = Dropdown.init (Preset (defaultFlower Rose))
       , genesA = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , genesB = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , colorsToUse = Dict.empty
@@ -98,12 +110,8 @@ init session =
 
 type Msg
     = KindDropdownMsg (Dropdown.Msg FlowerKind)
-    | FlowerTabMsgA (TabSwitcher.Msg FlowerTab)
-    | FlowerTabMsgB (TabSwitcher.Msg FlowerTab)
-    | ShopDropdownMsgA (Dropdown.Msg Flower)
-    | ShopDropdownMsgB (Dropdown.Msg Flower)
-    | IslandDropdownMsgA (Dropdown.Msg Flower)
-    | IslandDropdownMsgB (Dropdown.Msg Flower)
+    | DropdownMsgA (Dropdown.Msg FlowerSelectionData)
+    | DropdownMsgB (Dropdown.Msg FlowerSelectionData)
     | SetGenesA FlowerKind DominantList
     | SetGenesB FlowerKind DominantList
     | SetBreedingResultDisplayMode BreedingResultDisplayMode
@@ -118,78 +126,94 @@ update msg model =
             , Cmd.none
             )
 
-        FlowerTabMsgA subMsg ->
-            ( { model | flowerTabA = TabSwitcher.update subMsg model.flowerTabA }
-            , Cmd.none
-            )
-
-        FlowerTabMsgB subMsg ->
-            ( { model | flowerTabB = TabSwitcher.update subMsg model.flowerTabB }
-            , Cmd.none
-            )
-
-        ShopDropdownMsgA subMsg ->
+        DropdownMsgA subMsg ->
             ( case subMsg of
-                SetSelected flower ->
+                SetSelected data ->
                     { model
-                        | shopDropdownModelA = Dropdown.update subMsg model.shopDropdownModelA
-                        , genesA = Dict.insert flower.kind flower.genes model.genesA
+                        | dropdownModelA = Dropdown.update subMsg model.dropdownModelA
+                        , genesA = Dict.insert (getFlowerSelectionDataKind data) (getFlowerSelectionDataGenes data) model.genesA
                     }
 
                 _ ->
-                    { model | shopDropdownModelA = Dropdown.update subMsg model.shopDropdownModelA }
+                    { model | dropdownModelA = Dropdown.update subMsg model.dropdownModelA }
             , Cmd.none
             )
 
-        ShopDropdownMsgB subMsg ->
+        DropdownMsgB subMsg ->
             ( case subMsg of
-                SetSelected flower ->
+                SetSelected data ->
                     { model
-                        | shopDropdownModelB = Dropdown.update subMsg model.shopDropdownModelB
-                        , genesB = Dict.insert flower.kind flower.genes model.genesB
+                        | dropdownModelB = Dropdown.update subMsg model.dropdownModelB
+                        , genesB = Dict.insert (getFlowerSelectionDataKind data) (getFlowerSelectionDataGenes data) model.genesB
                     }
 
                 _ ->
-                    { model | shopDropdownModelB = Dropdown.update subMsg model.shopDropdownModelB }
-            , Cmd.none
-            )
-
-        IslandDropdownMsgA subMsg ->
-            ( case subMsg of
-                SetSelected flower ->
-                    { model
-                        | islandDropdownModelA = Dropdown.update subMsg model.islandDropdownModelA
-                        , genesA = Dict.insert flower.kind flower.genes model.genesA
-                    }
-
-                _ ->
-                    { model | islandDropdownModelA = Dropdown.update subMsg model.islandDropdownModelA }
-            , Cmd.none
-            )
-
-        IslandDropdownMsgB subMsg ->
-            ( case subMsg of
-                SetSelected flower ->
-                    { model
-                        | islandDropdownModelB = Dropdown.update subMsg model.islandDropdownModelB
-                        , genesB = Dict.insert flower.kind flower.genes model.genesB
-                    }
-
-                _ ->
-                    { model | islandDropdownModelB = Dropdown.update subMsg model.islandDropdownModelB }
+                    { model | dropdownModelB = Dropdown.update subMsg model.dropdownModelB }
             , Cmd.none
             )
 
         SetGenesA kind genes ->
+            let
+                flower =
+                    Flower kind genes
+
+                flowerSelectionKind =
+                    let
+                        color =
+                            Flower.getColor flower
+
+                        correspondingIslandGenes =
+                            color
+                                |> Maybe.andThen (Flower.getIslandFlower kind)
+                                |> Maybe.map .genes
+
+                        correspondingSeedGenes =
+                            color
+                                |> Maybe.andThen (Flower.getSeedFlower kind)
+                                |> Maybe.map .genes
+                    in
+                    if Just genes /= correspondingIslandGenes && Just genes /= correspondingSeedGenes then
+                        Custom
+
+                    else
+                        Preset
+            in
             ( { model
                 | genesA = Dict.insert kind genes model.genesA
+                , dropdownModelA = Dropdown.update (SetSelected (flowerSelectionKind flower)) model.dropdownModelA
               }
             , Cmd.none
             )
 
         SetGenesB kind genes ->
+            let
+                flower =
+                    Flower kind genes
+
+                flowerSelectionKind =
+                    let
+                        color =
+                            Flower.getColor flower
+
+                        correspondingIslandGenes =
+                            color
+                                |> Maybe.andThen (Flower.getIslandFlower kind)
+                                |> Maybe.map .genes
+
+                        correspondingSeedGenes =
+                            color
+                                |> Maybe.andThen (Flower.getSeedFlower kind)
+                                |> Maybe.map .genes
+                    in
+                    if Just genes /= correspondingIslandGenes && Just genes /= correspondingSeedGenes then
+                        Custom
+
+                    else
+                        Preset
+            in
             ( { model
                 | genesB = Dict.insert kind genes model.genesB
+                , dropdownModelB = Dropdown.update (SetSelected (flowerSelectionKind flower)) model.dropdownModelB
               }
             , Cmd.none
             )
@@ -205,8 +229,14 @@ update msg model =
             )
 
 
-maybeViewGenePicker : Theme -> (FlowerKind -> DominantList -> Msg) -> Maybe Flower -> Element Msg
-maybeViewGenePicker theme setGenesToKind maybeFlower =
+maybeViewGenePicker :
+    Theme
+    -> (FlowerKind -> DominantList -> Msg)
+    -> Maybe Flower
+    -> (Dropdown.Msg FlowerSelectionData -> Msg)
+    -> Dropdown.Model FlowerSelectionData
+    -> Element Msg
+maybeViewGenePicker theme setGenesToKind maybeSelectedFlower presetToMsg presetModel =
     let
         viewGeneSelect : (DominantList -> Msg) -> DominantList -> Element Msg
         viewGeneSelect setGenes genes =
@@ -238,22 +268,61 @@ maybeViewGenePicker theme setGenesToKind maybeFlower =
             in
             column [ spacing 5 ] (List.indexedMap viewColumn genes)
 
-        viewGenePicker flower =
-            column []
-                [ el [ centerX ]
-                    (Flower.toFullName flower
-                        |> Maybe.map text
-                        |> Maybe.withDefault Element.none
-                    )
+        viewGenePicker : Flower -> Element Msg
+        viewGenePicker selectedFlower =
+            let
+                options =
+                    let
+                        viewPreset color =
+                            let
+                                label =
+                                    text (Flower.Color.toString color ++ " " ++ Flower.Kind.toString selectedFlower.kind)
+                            in
+                            viewKind label selectedFlower.kind color
+
+                        toPresetPair flower =
+                            ( Preset flower
+                            , ( Flower.getColor flower
+                                    |> Maybe.map viewPreset
+                                    |> Maybe.withDefault Element.none
+                              , True
+                              )
+                            )
+
+                        shopOptions =
+                            Flower.getSeedColors selectedFlower.kind
+                                |> List.filterMap (Flower.getSeedFlower selectedFlower.kind >> Maybe.map toPresetPair)
+
+                        islandOptions =
+                            Flower.getIslandColors selectedFlower.kind
+                                |> List.filterMap (Flower.getIslandFlower selectedFlower.kind >> Maybe.map toPresetPair)
+
+                        customOption color =
+                            ( viewKind (text ("Custom " ++ Flower.Kind.toString selectedFlower.kind)) selectedFlower.kind color, False )
+
+                        maybeCustomOption =
+                            Flower.getColor selectedFlower
+                                |> Maybe.map customOption
+                    in
+                    (shopOptions ++ islandOptions)
+                        |> (::)
+                            ( Custom selectedFlower
+                            , maybeCustomOption |> Maybe.withDefault ( Element.none, False )
+                            )
+                        |> List.reverse
+                        |> Dict.fromList
+            in
+            column [ spacing 15 ]
+                [ el [ centerX, centerY, width (px 225) ] (Dropdown.view theme options presetToMsg presetModel)
                 , row [ spacing 20 ]
-                    [ Image.fromFlower flower
-                        |> Maybe.map (Image.toElement [ height (fillPortion 2), Border.rounded 10, Border.width 1 ] "")
+                    [ Image.fromFlower selectedFlower
+                        |> Maybe.map (Image.toElement [ height (fillPortion 2) ] "")
                         |> Maybe.withDefault Element.none
-                    , viewGeneSelect (setGenesToKind flower.kind) flower.genes
+                    , viewGeneSelect (setGenesToKind selectedFlower.kind) selectedFlower.genes
                     ]
                 ]
     in
-    maybeFlower |> Maybe.map viewGenePicker |> Maybe.withDefault Element.none
+    maybeSelectedFlower |> Maybe.map viewGenePicker |> Maybe.withDefault Element.none
 
 
 maybeViewBreedingResults : Theme -> Maybe Flower -> Maybe Flower -> Element msg
@@ -299,81 +368,17 @@ viewKind label kind color =
         ]
 
 
-viewFlowerInput :
-    Theme
-    -> (FlowerKind -> DominantList -> Msg)
-    -> Maybe Flower
-    -> (TabSwitcher.Msg FlowerTab -> Msg)
-    -> TabSwitcher.Model FlowerTab
-    -> FlowerKind
-    -> (Dropdown.Msg Flower -> Msg)
-    -> Dropdown.Model Flower
-    -> (Dropdown.Msg Flower -> Msg)
-    -> Dropdown.Model Flower
-    -> Element Msg
-viewFlowerInput theme setGenesMsg maybeSelectedFlower tabSwitcherToMsg tabSwitcherModel kind shopToMsg shopModel islandToMsg islandModel =
-    let
-        renderOption color =
-            let
-                label =
-                    text (Flower.Color.toString color ++ " " ++ Flower.Kind.toString kind)
-            in
-            viewKind label kind color
-
-        toPair flower =
-            ( flower
-            , Flower.getColor flower
-                |> Maybe.map renderOption
-                |> Maybe.withDefault Element.none
-            )
-
-        shopOptions =
-            Flower.getSeedColors kind
-                |> List.filterMap (Flower.getSeedFlower kind >> Maybe.map toPair)
-                |> Dict.fromList
-
-        islandOptions =
-            Flower.getIslandColors kind
-                |> List.filterMap (Flower.getIslandFlower kind >> Maybe.map toPair)
-                |> Dict.fromList
-
-        tabContentAttrs =
-            [ padding 30, spacing 10, width fill, height (px 240) ]
-    in
-    TabSwitcher.view
-        theme
-        [ width (px 400) ]
-        (Dict.fromList
-            [ ( Manual
-              , { label = text "Manual"
-                , content = el tabContentAttrs (maybeViewGenePicker theme setGenesMsg maybeSelectedFlower)
-                }
-              )
-            , ( Shop
-              , { label = text "Shop Seeds"
-                , content = el tabContentAttrs (el [ centerX, centerY ] (Dropdown.view theme shopOptions shopToMsg shopModel))
-                }
-              )
-            , ( Island
-              , { label = text "Island Flowers"
-                , content = el tabContentAttrs (el [ centerX, centerY ] (Dropdown.view theme islandOptions islandToMsg islandModel))
-                }
-              )
-            ]
-        )
-        tabSwitcherToMsg
-        tabSwitcherModel
-
-
 view : Theme -> Model -> Page.Data Msg
 view theme model =
     let
         kindPair kind =
             ( kind
-            , Dict.get kind model.colorsToUse
-                |> Maybe.Extra.join
-                |> Maybe.map (viewKind (text (Flower.Kind.toString kind)) kind)
-                |> Maybe.withDefault Element.none
+            , ( Dict.get kind model.colorsToUse
+                    |> Maybe.Extra.join
+                    |> Maybe.map (viewKind (text (Flower.Kind.toString kind)) kind)
+                    |> Maybe.withDefault Element.none
+              , True
+              )
             )
 
         maybeFlower genesDict =
@@ -391,40 +396,33 @@ view theme model =
             maybeFlower model.genesB
 
         dropdownOptions =
-            Dict.fromList (List.reverse (List.map kindPair Flower.Kind.allKinds))
+            Flower.Kind.allKinds
+                |> List.map kindPair
+                |> List.reverse
+                |> Dict.fromList
     in
     { title = "Breeder"
     , content =
         el [ centerX, centerY, spacing 30, width fill, height fill, paddingEach { top = 30, left = 0, bottom = 0, right = 0 } ] <|
-            column [ width fill, height fill, centerX, spacing 15 ]
+            column [ width fill, height fill, centerX, spacing 30 ]
                 [ row [ centerX, spacing 15 ]
                     [ el [] (text "Select a flower")
-                    , Dropdown.view theme dropdownOptions KindDropdownMsg model.kindData
+                    , el [ width (px 146) ] (Dropdown.view theme dropdownOptions KindDropdownMsg model.kindData)
                     ]
                 , row [ centerX, spacing 45 ]
-                    [ viewFlowerInput
+                    [ maybeViewGenePicker
                         theme
                         SetGenesA
                         maybeFlowerA
-                        FlowerTabMsgA
-                        model.flowerTabA
-                        model.kindData.selected
-                        ShopDropdownMsgA
-                        model.shopDropdownModelA
-                        IslandDropdownMsgA
-                        model.islandDropdownModelA
+                        DropdownMsgA
+                        model.dropdownModelA
                     , text "bred with a "
-                    , viewFlowerInput
+                    , maybeViewGenePicker
                         theme
                         SetGenesB
                         maybeFlowerB
-                        FlowerTabMsgB
-                        model.flowerTabB
-                        model.kindData.selected
-                        ShopDropdownMsgB
-                        model.shopDropdownModelB
-                        IslandDropdownMsgB
-                        model.islandDropdownModelB
+                        DropdownMsgB
+                        model.dropdownModelB
                     ]
                 , el [ centerX ] (text "will produce")
                 , maybeViewBreedingResults theme maybeFlowerA maybeFlowerB

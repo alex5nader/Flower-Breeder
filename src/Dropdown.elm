@@ -42,8 +42,8 @@ update msg model =
             }
 
 
-dropdownItem : Theme -> key -> (Msg key -> msg) -> key -> Element msg -> Element msg
-dropdownItem theme selected toMsg value label =
+dropdownItem : Theme -> key -> (Msg key -> msg) -> key -> ( Element msg, Bool ) -> Element msg
+dropdownItem theme selected toMsg value ( label, _ ) =
     let
         attrs =
             if value == selected then
@@ -57,7 +57,7 @@ dropdownItem theme selected toMsg value label =
         { onPress = Just (toMsg (SetSelected value)), label = label }
 
 
-autoCompleteDropdown : Theme -> key -> Dict key (Element msg) -> (Msg key -> msg) -> Element msg
+autoCompleteDropdown : Theme -> key -> Dict key ( Element msg, Bool ) -> (Msg key -> msg) -> Element msg
 autoCompleteDropdown theme selected options toMsg =
     column
         [ width fill
@@ -66,10 +66,14 @@ autoCompleteDropdown theme selected options toMsg =
         , Background.color (Theme.backgroundColor theme)
         , clip
         ]
-        (Dict.values (Dict.map (dropdownItem theme selected toMsg) options))
+        (options
+            |> Dict.filter (\_ ( _, show ) -> show)
+            |> Dict.map (dropdownItem theme selected toMsg)
+            |> Dict.values
+        )
 
 
-view : Theme -> Dict key (Element msg) -> (Msg key -> msg) -> Model key -> Element msg
+view : Theme -> Dict key ( Element msg, Bool ) -> (Msg key -> msg) -> Model key -> Element msg
 view theme options toMsg model =
     let
         outerAttrs =
@@ -80,8 +84,8 @@ view theme options toMsg model =
                 []
             )
                 ++ [ height fill
+                   , width fill
                    , centerX
-                   , width (px 146)
                    ]
 
         innerAttrs =
@@ -104,6 +108,7 @@ view theme options toMsg model =
             , label =
                 Dict.get model.selected options
                     |> Maybe.Extra.orElse (Dict.values options |> List.head)
+                    |> Maybe.map Tuple.first
                     |> Maybe.withDefault Element.none
             }
         )
