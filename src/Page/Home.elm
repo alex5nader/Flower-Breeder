@@ -45,34 +45,53 @@ type BreedingResultDisplayMode
     | ByColor
 
 
-type FlowerSelectionData
-    = Preset Flower
-    | Custom Flower
+type SourcedFlower
+    = Seed Flower
+    | Island Flower
+    | Crossbred Flower
 
 
-getFlowerSelectionDataKind data =
+sourcedFlowerToKind data =
     case data of
-        Preset f ->
+        Seed f ->
             f.kind
 
-        Custom f ->
+        Island f ->
+            f.kind
+
+        Crossbred f ->
             f.kind
 
 
-getFlowerSelectionDataGenes data =
+sourcedFlowerToGenes data =
     case data of
-        Preset f ->
+        Seed f ->
             f.genes
 
-        Custom f ->
+        Island f ->
             f.genes
+
+        Crossbred f ->
+            f.genes
+
+
+getFlowerSource data =
+    case data of
+        Seed _ ->
+            "Seed"
+
+        Island _ ->
+            "Island"
+
+        Crossbred _ ->
+            "Custom"
 
 
 type alias Model =
     { session : Session
     , kindData : Dropdown.Model FlowerKind
-    , dropdownModelA : Dropdown.Model FlowerSelectionData
-    , dropdownModelB : Dropdown.Model FlowerSelectionData
+    , dropdownModelA : Dropdown.Model SourcedFlower
+    , dropdownModelB : Dropdown.Model SourcedFlower
     , genesA : Dict FlowerKind DominantList
     , genesB : Dict FlowerKind DominantList
     , colorsToUse : Dict FlowerKind (Maybe FlowerColor)
@@ -97,8 +116,8 @@ init session =
     in
     ( { session = session
       , kindData = Dropdown.init Rose
-      , dropdownModelA = Dropdown.init (Preset (defaultFlower Rose))
-      , dropdownModelB = Dropdown.init (Preset (defaultFlower Rose))
+      , dropdownModelA = Dropdown.init (Seed (defaultFlower Rose))
+      , dropdownModelB = Dropdown.init (Seed (defaultFlower Rose))
       , genesA = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , genesB = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , colorsToUse = Dict.empty
@@ -110,8 +129,8 @@ init session =
 
 type Msg
     = KindDropdownMsg (Dropdown.Msg FlowerKind)
-    | DropdownMsgA (Dropdown.Msg FlowerSelectionData)
-    | DropdownMsgB (Dropdown.Msg FlowerSelectionData)
+    | DropdownMsgA (Dropdown.Msg SourcedFlower)
+    | DropdownMsgB (Dropdown.Msg SourcedFlower)
     | SetGenesA FlowerKind DominantList
     | SetGenesB FlowerKind DominantList
     | SetBreedingResultDisplayMode BreedingResultDisplayMode
@@ -131,7 +150,7 @@ update msg model =
                 SetSelected data ->
                     { model
                         | dropdownModelA = Dropdown.update subMsg model.dropdownModelA
-                        , genesA = Dict.insert (getFlowerSelectionDataKind data) (getFlowerSelectionDataGenes data) model.genesA
+                        , genesA = Dict.insert (sourcedFlowerToKind data) (sourcedFlowerToGenes data) model.genesA
                     }
 
                 _ ->
@@ -144,7 +163,7 @@ update msg model =
                 SetSelected data ->
                     { model
                         | dropdownModelB = Dropdown.update subMsg model.dropdownModelB
-                        , genesB = Dict.insert (getFlowerSelectionDataKind data) (getFlowerSelectionDataGenes data) model.genesB
+                        , genesB = Dict.insert (sourcedFlowerToKind data) (sourcedFlowerToGenes data) model.genesB
                     }
 
                 _ ->
@@ -173,10 +192,10 @@ update msg model =
                                 |> Maybe.map .genes
                     in
                     if Just genes /= correspondingIslandGenes && Just genes /= correspondingSeedGenes then
-                        Custom
+                        Crossbred
 
                     else
-                        Preset
+                        Seed
             in
             ( { model
                 | genesA = Dict.insert kind genes model.genesA
@@ -205,11 +224,14 @@ update msg model =
                                 |> Maybe.andThen (Flower.getSeedFlower kind)
                                 |> Maybe.map .genes
                     in
-                    if Just genes /= correspondingIslandGenes && Just genes /= correspondingSeedGenes then
-                        Custom
+                    if Just genes == correspondingSeedGenes then
+                        Seed
+
+                    else if Just genes == correspondingIslandGenes then
+                        Island
 
                     else
-                        Preset
+                        Crossbred
             in
             ( { model
                 | genesB = Dict.insert kind genes model.genesB
@@ -233,8 +255,8 @@ maybeViewGenePicker :
     Theme
     -> (FlowerKind -> DominantList -> Msg)
     -> Maybe Flower
-    -> (Dropdown.Msg FlowerSelectionData -> Msg)
-    -> Dropdown.Model FlowerSelectionData
+    -> (Dropdown.Msg SourcedFlower -> Msg)
+    -> Dropdown.Model SourcedFlower
     -> Element Msg
 maybeViewGenePicker theme setGenesToKind maybeSelectedFlower presetToMsg presetModel =
     let
@@ -273,47 +295,55 @@ maybeViewGenePicker theme setGenesToKind maybeSelectedFlower presetToMsg presetM
             let
                 options =
                     let
-                        viewPreset color =
+                        viewPreset source color =
                             let
                                 label =
-                                    text (Flower.Color.toString color ++ " " ++ Flower.Kind.toString selectedFlower.kind)
+                                    text
+                                        (String.join " "
+                                            [ getFlowerSource source
+                                            , Flower.Color.toString color
+                                            , Flower.Kind.toString selectedFlower.kind
+                                            ]
+                                        )
                             in
                             viewKind label selectedFlower.kind color
 
-                        toPresetPair flower =
-                            ( Preset flower
+                        toSourcedPair source flower =
+                            let
+                                sourcedFlower =
+                                    source flower
+                            in
+                            ( sourcedFlower
                             , ( Flower.getColor flower
-                                    |> Maybe.map viewPreset
+                                    |> Maybe.map (viewPreset sourcedFlower)
                                     |> Maybe.withDefault Element.none
-                              , True
+                              , case sourcedFlower of
+                                    Crossbred _ ->
+                                        False
+
+                                    _ ->
+                                        True
                               )
                             )
 
                         shopOptions =
                             Flower.getSeedColors selectedFlower.kind
-                                |> List.filterMap (Flower.getSeedFlower selectedFlower.kind >> Maybe.map toPresetPair)
+                                |> List.filterMap (Flower.getSeedFlower selectedFlower.kind >> Maybe.map (toSourcedPair Seed))
 
                         islandOptions =
                             Flower.getIslandColors selectedFlower.kind
-                                |> List.filterMap (Flower.getIslandFlower selectedFlower.kind >> Maybe.map toPresetPair)
+                                |> List.filterMap (Flower.getIslandFlower selectedFlower.kind >> Maybe.map (toSourcedPair Island))
 
-                        customOption color =
-                            ( viewKind (text ("Custom " ++ Flower.Kind.toString selectedFlower.kind)) selectedFlower.kind color, False )
-
-                        maybeCustomOption =
-                            Flower.getColor selectedFlower
-                                |> Maybe.map customOption
+                        customOption =
+                            toSourcedPair Crossbred selectedFlower
                     in
                     (shopOptions ++ islandOptions)
-                        |> (::)
-                            ( Custom selectedFlower
-                            , maybeCustomOption |> Maybe.withDefault ( Element.none, False )
-                            )
+                        |> (::) customOption
                         |> List.reverse
                         |> Dict.fromList
             in
             column [ spacing 15 ]
-                [ el [ centerX, centerY, width (px 225) ] (Dropdown.view theme options presetToMsg presetModel)
+                [ el [ centerX, centerY, width (px 300) ] (Dropdown.view theme options presetToMsg presetModel)
                 , row [ spacing 20 ]
                     [ Image.fromFlower selectedFlower
                         |> Maybe.map (Image.toElement [ height (fillPortion 2) ] "")

@@ -1,7 +1,7 @@
 module Dropdown exposing (Model, Msg(..), init, update, view)
 
 import AssocList as Dict exposing (Dict)
-import Element exposing (Attribute, Element, centerX, clip, column, el, fill, height, px, width)
+import Element exposing (Attribute, Element, centerX, centerY, clip, column, el, fill, height, px, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -86,6 +86,7 @@ view theme options toMsg model =
                 ++ [ height fill
                    , width fill
                    , centerX
+                   , centerY
                    ]
 
         innerAttrs =
