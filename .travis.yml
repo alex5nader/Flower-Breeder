@@ -27,4 +27,4 @@ install:
 
 script:
   - elm-format --validate .
-  - elm-test
+#  - elm-test
