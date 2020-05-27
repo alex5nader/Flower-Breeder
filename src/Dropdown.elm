@@ -1,4 +1,4 @@
-module Dropdown exposing (view)
+module Dropdown exposing (Model, Msg(..), init, update, view)
 
 import AssocList as Dict exposing (Dict)
 import Element exposing (Attribute, Element, centerX, clip, column, el, fill, height, px, width)
@@ -7,11 +7,43 @@ import Element.Border as Border
 import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Input exposing (Label(..), button)
+import Maybe.Extra
 import Theme exposing (Theme)
 
 
-dropdownItem : Theme -> key -> (key -> msg) -> key -> Element msg -> Element msg
-dropdownItem theme selected selectionMsg value label =
+type alias Model key =
+    { visible : Bool
+    , selected : key
+    }
+
+
+init : key -> Model key
+init selected =
+    { visible = False
+    , selected = selected
+    }
+
+
+type Msg key
+    = SetVisibility Bool
+    | SetSelected key
+
+
+update : Msg key -> Model key -> Model key
+update msg model =
+    case msg of
+        SetVisibility visible ->
+            { model | visible = visible }
+
+        SetSelected selected ->
+            { model
+                | selected = selected
+                , visible = False
+            }
+
+
+dropdownItem : Theme -> key -> (Msg key -> msg) -> key -> Element msg -> Element msg
+dropdownItem theme selected toMsg value label =
     let
         attrs =
             if value == selected then
@@ -22,11 +54,11 @@ dropdownItem theme selected selectionMsg value label =
     in
     button
         (width fill :: attrs)
-        { onPress = Just (selectionMsg value), label = label }
+        { onPress = Just (toMsg (SetSelected value)), label = label }
 
 
-autoCompleteDropdown : Theme -> key -> (key -> msg) -> Dict key (Element msg) -> Element msg
-autoCompleteDropdown theme selected selectionMsg options =
+autoCompleteDropdown : Theme -> key -> Dict key (Element msg) -> (Msg key -> msg) -> Element msg
+autoCompleteDropdown theme selected options toMsg =
     column
         [ width fill
         , Border.widthEach { top = 0, left = 1, bottom = 1, right = 1 }
@@ -34,15 +66,15 @@ autoCompleteDropdown theme selected selectionMsg options =
         , Background.color (Theme.backgroundColor theme)
         , clip
         ]
-        (Dict.values (Dict.map (dropdownItem theme selected selectionMsg) options))
+        (Dict.values (Dict.map (dropdownItem theme selected toMsg) options))
 
 
-view : Theme -> (Bool -> msg) -> (key -> msg) -> Bool -> key -> Dict key (Element msg) -> Element msg
-view theme setDropdownVisibility setSelection focused selectedValue options =
+view : Theme -> Dict key (Element msg) -> (Msg key -> msg) -> Model key -> Element msg
+view theme options toMsg model =
     let
         outerAttrs =
-            (if focused then
-                [ Element.below (autoCompleteDropdown theme selectedValue setSelection options) ]
+            (if model.visible then
+                [ Element.below (autoCompleteDropdown theme model.selected options toMsg) ]
 
              else
                 []
@@ -53,7 +85,7 @@ view theme setDropdownVisibility setSelection focused selectedValue options =
                    ]
 
         innerAttrs =
-            (if focused then
+            (if model.visible then
                 Border.roundEach { topLeft = 10, topRight = 10, bottomLeft = 0, bottomRight = 0 }
 
              else
@@ -62,15 +94,16 @@ view theme setDropdownVisibility setSelection focused selectedValue options =
                 :: [ Border.width 1
                    , width fill
                    , height fill
-                   , onClick (setDropdownVisibility (not focused))
+                   , onClick (toMsg (SetVisibility (not model.visible)))
                    ]
     in
     el
         outerAttrs
         (button innerAttrs
-            { onPress = Just (setDropdownVisibility True)
+            { onPress = Just (toMsg (SetVisibility True))
             , label =
-                Dict.get selectedValue options
+                Dict.get model.selected options
+                    |> Maybe.Extra.orElse (Dict.values options |> List.head)
                     |> Maybe.withDefault Element.none
             }
         )

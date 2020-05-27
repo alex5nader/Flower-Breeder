@@ -2,14 +2,14 @@ module Page.Home exposing (Model, Msg, init, subscriptions, toSession, update, v
 
 import Asset.Image as Image
 import AssocList as Dict exposing (Dict)
-import Dropdown
+import Dropdown exposing (Msg(..))
 import Element exposing (Element, centerX, centerY, clip, column, el, fill, fillPortion, height, maximum, padding, paddingEach, px, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input exposing (button)
 import Flower exposing (Flower)
-import Flower.Color exposing (FlowerColor)
+import Flower.Color exposing (FlowerColor(..))
 import Flower.Kind exposing (FlowerKind(..))
 import Genetics exposing (DominantCount(..), DominantList)
 import List.Split
@@ -18,6 +18,7 @@ import Page
 import Random exposing (Generator)
 import Random.List
 import Session exposing (Session)
+import TabSwitcher
 import Theme exposing (Theme)
 
 
@@ -40,6 +41,12 @@ flowerKindGenerator kinds =
         |> Random.map Dict.fromList
 
 
+type FlowerTab
+    = Manual
+    | Shop
+    | Island
+
+
 type BreedingResultDisplayMode
     = ByGenes
     | ByColor
@@ -47,8 +54,13 @@ type BreedingResultDisplayMode
 
 type alias Model =
     { session : Session
-    , kind : FlowerKind
-    , kindDropdownVisible : Bool
+    , kindData : Dropdown.Model FlowerKind
+    , flowerTabA : TabSwitcher.Model FlowerTab
+    , flowerTabB : TabSwitcher.Model FlowerTab
+    , shopDropdownModelA : Dropdown.Model Flower
+    , shopDropdownModelB : Dropdown.Model Flower
+    , islandDropdownModelA : Dropdown.Model Flower
+    , islandDropdownModelB : Dropdown.Model Flower
     , genesA : Dict FlowerKind DominantList
     , genesB : Dict FlowerKind DominantList
     , colorsToUse : Dict FlowerKind (Maybe FlowerColor)
@@ -68,8 +80,13 @@ init session =
             ( kind, List.repeat (Flower.getGeneCount kind) One )
     in
     ( { session = session
-      , kind = Rose
-      , kindDropdownVisible = False
+      , kindData = Dropdown.init Rose
+      , flowerTabA = TabSwitcher.init Manual
+      , flowerTabB = TabSwitcher.init Manual
+      , shopDropdownModelA = Dropdown.init (Flower.getSeedFlower Rose Red |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
+      , shopDropdownModelB = Dropdown.init (Flower.getSeedFlower Rose Red |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
+      , islandDropdownModelA = Dropdown.init (Flower.getIslandFlower Rose Pink |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
+      , islandDropdownModelB = Dropdown.init (Flower.getIslandFlower Rose Pink |> Maybe.withDefault (Flower Rose [ Zero, Zero, Zero, Zero ]))
       , genesA = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , genesB = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , colorsToUse = Dict.empty
@@ -80,8 +97,13 @@ init session =
 
 
 type Msg
-    = SetKind FlowerKind
-    | SetKindDropdownVisibility Bool
+    = KindDropdownMsg (Dropdown.Msg FlowerKind)
+    | FlowerTabMsgA (TabSwitcher.Msg FlowerTab)
+    | FlowerTabMsgB (TabSwitcher.Msg FlowerTab)
+    | ShopDropdownMsgA (Dropdown.Msg Flower)
+    | ShopDropdownMsgB (Dropdown.Msg Flower)
+    | IslandDropdownMsgA (Dropdown.Msg Flower)
+    | IslandDropdownMsgB (Dropdown.Msg Flower)
     | SetGenesA FlowerKind DominantList
     | SetGenesB FlowerKind DominantList
     | SetBreedingResultDisplayMode BreedingResultDisplayMode
@@ -91,16 +113,70 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        SetKind kind ->
-            ( { model
-                | kind = kind
-                , kindDropdownVisible = False
-              }
+        KindDropdownMsg subMsg ->
+            ( { model | kindData = Dropdown.update subMsg model.kindData }
             , Cmd.none
             )
 
-        SetKindDropdownVisibility value ->
-            ( { model | kindDropdownVisible = value }
+        FlowerTabMsgA subMsg ->
+            ( { model | flowerTabA = TabSwitcher.update subMsg model.flowerTabA }
+            , Cmd.none
+            )
+
+        FlowerTabMsgB subMsg ->
+            ( { model | flowerTabB = TabSwitcher.update subMsg model.flowerTabB }
+            , Cmd.none
+            )
+
+        ShopDropdownMsgA subMsg ->
+            ( case subMsg of
+                SetSelected flower ->
+                    { model
+                        | shopDropdownModelA = Dropdown.update subMsg model.shopDropdownModelA
+                        , genesA = Dict.insert flower.kind flower.genes model.genesA
+                    }
+
+                _ ->
+                    { model | shopDropdownModelA = Dropdown.update subMsg model.shopDropdownModelA }
+            , Cmd.none
+            )
+
+        ShopDropdownMsgB subMsg ->
+            ( case subMsg of
+                SetSelected flower ->
+                    { model
+                        | shopDropdownModelB = Dropdown.update subMsg model.shopDropdownModelB
+                        , genesB = Dict.insert flower.kind flower.genes model.genesB
+                    }
+
+                _ ->
+                    { model | shopDropdownModelB = Dropdown.update subMsg model.shopDropdownModelB }
+            , Cmd.none
+            )
+
+        IslandDropdownMsgA subMsg ->
+            ( case subMsg of
+                SetSelected flower ->
+                    { model
+                        | islandDropdownModelA = Dropdown.update subMsg model.islandDropdownModelA
+                        , genesA = Dict.insert flower.kind flower.genes model.genesA
+                    }
+
+                _ ->
+                    { model | islandDropdownModelA = Dropdown.update subMsg model.islandDropdownModelA }
+            , Cmd.none
+            )
+
+        IslandDropdownMsgB subMsg ->
+            ( case subMsg of
+                SetSelected flower ->
+                    { model
+                        | islandDropdownModelB = Dropdown.update subMsg model.islandDropdownModelB
+                        , genesB = Dict.insert flower.kind flower.genes model.genesB
+                    }
+
+                _ ->
+                    { model | islandDropdownModelB = Dropdown.update subMsg model.islandDropdownModelB }
             , Cmd.none
             )
 
@@ -147,7 +223,7 @@ maybeViewGenePicker theme setGenesToKind maybeFlower =
                                 [ Font.color (Theme.backgroundColor theme), Background.color (Theme.lineColor theme) ]
 
                              else
-                                []
+                                [ Background.color (Theme.backgroundColor theme) ]
                             )
                                 ++ [ paddingEach { top = 5, left = 5, right = 5, bottom = 0 }, width (fillPortion 1), height (fillPortion 1) ]
                     in
@@ -157,13 +233,13 @@ maybeViewGenePicker theme setGenesToKind maybeFlower =
                 viewColumn i actual =
                     row [ spacing 10 ]
                         [ el [ Font.center ] (text ("Gene " ++ String.fromInt (i + 1)))
-                        , row [ width fill, height fill, clip, Border.width 1, Border.rounded 5 ] (List.map (viewOption i actual) [ Zero, One, Two ])
+                        , row [ width fill, height fill, clip, Border.width 1, Border.rounded 5, Background.color (Theme.lineColor theme), spacing 1 ] (List.map (viewOption i actual) [ Zero, One, Two ])
                         ]
             in
             column [ spacing 5 ] (List.indexedMap viewColumn genes)
 
         viewGenePicker flower =
-            column [ padding 30, spacing 10 ]
+            column []
                 [ el [ centerX ]
                     (Flower.toFullName flower
                         |> Maybe.map text
@@ -214,16 +290,79 @@ maybeViewBreedingResults theme maybeFlowerA maybeFlowerB =
         |> Maybe.withDefault Element.none
 
 
-viewKind : Dict FlowerKind (Maybe FlowerColor) -> FlowerKind -> Element Msg
-viewKind colorsToUse kind =
+viewKind : Element msg -> FlowerKind -> FlowerColor -> Element msg
+viewKind label kind color =
     row [ spacing 5, paddingEach { top = 0, left = 0, bottom = 0, right = 5 } ]
-        [ Dict.get kind colorsToUse
-            |> Maybe.Extra.join
-            |> Maybe.map (Image.fromFlowerKindAndColor kind)
-            |> Maybe.map (Image.toElement [ height (maximum 36 fill), centerY ] "")
-            |> Maybe.withDefault Element.none
-        , el [ Font.center ] (text (Flower.Kind.toString kind))
+        [ Image.fromFlowerKindAndColor kind color
+            |> Image.toElement [ height (maximum 36 fill), centerY ] ""
+        , el [ Font.center ] label
         ]
+
+
+viewFlowerInput :
+    Theme
+    -> (FlowerKind -> DominantList -> Msg)
+    -> Maybe Flower
+    -> (TabSwitcher.Msg FlowerTab -> Msg)
+    -> TabSwitcher.Model FlowerTab
+    -> FlowerKind
+    -> (Dropdown.Msg Flower -> Msg)
+    -> Dropdown.Model Flower
+    -> (Dropdown.Msg Flower -> Msg)
+    -> Dropdown.Model Flower
+    -> Element Msg
+viewFlowerInput theme setGenesMsg maybeSelectedFlower tabSwitcherToMsg tabSwitcherModel kind shopToMsg shopModel islandToMsg islandModel =
+    let
+        renderOption color =
+            let
+                label =
+                    text (Flower.Color.toString color ++ " " ++ Flower.Kind.toString kind)
+            in
+            viewKind label kind color
+
+        toPair flower =
+            ( flower
+            , Flower.getColor flower
+                |> Maybe.map renderOption
+                |> Maybe.withDefault Element.none
+            )
+
+        shopOptions =
+            Flower.getSeedColors kind
+                |> List.filterMap (Flower.getSeedFlower kind >> Maybe.map toPair)
+                |> Dict.fromList
+
+        islandOptions =
+            Flower.getIslandColors kind
+                |> List.filterMap (Flower.getIslandFlower kind >> Maybe.map toPair)
+                |> Dict.fromList
+
+        tabContentAttrs =
+            [ padding 30, spacing 10, width fill, height (px 240) ]
+    in
+    TabSwitcher.view
+        theme
+        [ width (px 400) ]
+        (Dict.fromList
+            [ ( Manual
+              , { label = text "Manual"
+                , content = el tabContentAttrs (maybeViewGenePicker theme setGenesMsg maybeSelectedFlower)
+                }
+              )
+            , ( Shop
+              , { label = text "Shop Seeds"
+                , content = el tabContentAttrs (el [ centerX, centerY ] (Dropdown.view theme shopOptions shopToMsg shopModel))
+                }
+              )
+            , ( Island
+              , { label = text "Island Flowers"
+                , content = el tabContentAttrs (el [ centerX, centerY ] (Dropdown.view theme islandOptions islandToMsg islandModel))
+                }
+              )
+            ]
+        )
+        tabSwitcherToMsg
+        tabSwitcherModel
 
 
 view : Theme -> Model -> Page.Data Msg
@@ -231,13 +370,16 @@ view theme model =
     let
         kindPair kind =
             ( kind
-            , viewKind model.colorsToUse kind
+            , Dict.get kind model.colorsToUse
+                |> Maybe.Extra.join
+                |> Maybe.map (viewKind (text (Flower.Kind.toString kind)) kind)
+                |> Maybe.withDefault Element.none
             )
 
         maybeFlower genesDict =
-            case Dict.get model.kind genesDict of
+            case Dict.get model.kindData.selected genesDict of
                 Just genes ->
-                    Just (Flower model.kind genes)
+                    Just (Flower model.kindData.selected genes)
 
                 _ ->
                     Nothing
@@ -257,12 +399,32 @@ view theme model =
             column [ width fill, height fill, centerX, spacing 15 ]
                 [ row [ centerX, spacing 15 ]
                     [ el [] (text "Select a flower")
-                    , Dropdown.view theme SetKindDropdownVisibility SetKind model.kindDropdownVisible model.kind dropdownOptions
+                    , Dropdown.view theme dropdownOptions KindDropdownMsg model.kindData
                     ]
                 , row [ centerX, spacing 45 ]
-                    [ maybeViewGenePicker theme SetGenesA maybeFlowerA
+                    [ viewFlowerInput
+                        theme
+                        SetGenesA
+                        maybeFlowerA
+                        FlowerTabMsgA
+                        model.flowerTabA
+                        model.kindData.selected
+                        ShopDropdownMsgA
+                        model.shopDropdownModelA
+                        IslandDropdownMsgA
+                        model.islandDropdownModelA
                     , text "bred with a "
-                    , maybeViewGenePicker theme SetGenesB maybeFlowerB
+                    , viewFlowerInput
+                        theme
+                        SetGenesB
+                        maybeFlowerB
+                        FlowerTabMsgB
+                        model.flowerTabB
+                        model.kindData.selected
+                        ShopDropdownMsgB
+                        model.shopDropdownModelB
+                        IslandDropdownMsgB
+                        model.islandDropdownModelB
                     ]
                 , el [ centerX ] (text "will produce")
                 , maybeViewBreedingResults theme maybeFlowerA maybeFlowerB
