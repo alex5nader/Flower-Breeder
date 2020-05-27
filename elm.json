@@ -18,6 +18,7 @@
             "elm-community/list-split": "1.0.3",
             "elm-community/maybe-extra": "5.2.0",
             "elm-community/random-extra": "3.1.0",
+            "lynn/elm-arithmetic": "3.0.0",
             "mdgriffith/elm-ui": "1.1.5",
             "pzp1997/assoc-list": "1.0.0"
         },

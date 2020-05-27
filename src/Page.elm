@@ -1,7 +1,7 @@
-module Page exposing (Data, Page(..), toString, view)
+module Page exposing (Data, Page(..), view)
 
 import Browser exposing (Document)
-import Element exposing (Element, alignLeft, alignRight, centerX, column, el, fill, fillPortion, height, link, padding, paragraph, row, spacing, text, width)
+import Element exposing (Element, alignRight, centerX, column, el, fill, height, link, padding, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font exposing (bold, underline)
@@ -20,21 +20,16 @@ type alias Data msg =
     { title : String, content : Element msg }
 
 
-toString : Page -> String
-toString page =
-    case page of
-        Other ->
-            "Other"
+view : Theme -> Int -> Page -> Data msg -> Document msg
+view theme windowWidth page { title, content } =
+    let
+        viewHeader =
+            if windowWidth < 600 then
+                viewSmallScreenHeader
 
-        Home ->
-            "Home"
-
-        About ->
-            "About"
-
-
-view : Theme -> Page -> Data msg -> Document msg
-view theme page { title, content } =
+            else
+                viewLargeScreenHeader
+    in
     { title = title ++ " - ACNH Flower Breeder"
     , body =
         [ Element.layout
@@ -51,8 +46,20 @@ view theme page { title, content } =
     }
 
 
-viewHeader : Page -> Element msg
-viewHeader page =
+viewSmallScreenHeader : Page -> Element msg
+viewSmallScreenHeader page =
+    let
+        linkTo =
+            linkFrom page
+    in
+    row [ Region.navigation, width fill, Border.widthEach { top = 0, left = 0, bottom = 3, right = 0 }, padding 25, spacing 25 ]
+        [ el [ centerX ] (linkTo Route.Home (text "Breeder"))
+        , el [ centerX ] (linkTo Route.About (text "About"))
+        ]
+
+
+viewLargeScreenHeader : Page -> Element msg
+viewLargeScreenHeader page =
     let
         linkTo =
             linkFrom page

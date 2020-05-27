@@ -1,9 +1,10 @@
 module Main exposing (..)
 
 import Browser exposing (Document, UrlRequest(..))
+import Browser.Events
 import Browser.Navigation as Nav
 import Html exposing (Html)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Json
 import Page
 import Page.About as About
@@ -16,6 +17,7 @@ import Route exposing (Route)
 import Session exposing (Session)
 import Settings exposing (Settings)
 import Url exposing (Url)
+import WindowSize exposing (WindowSize)
 
 
 type Model
@@ -41,23 +43,38 @@ toSession page =
             About.toSession about
 
 
-type alias InitData =
-    { settings : Settings
-    }
+withSession : Model -> Session -> Model
+withSession model newSession =
+    case model of
+        Redirect _ ->
+            Redirect newSession
+
+        NotFound _ ->
+            NotFound newSession
+
+        Home home ->
+            Home (Home.withSession home newSession)
+
+        About about ->
+            About (About.withSession about newSession)
 
 
 init : Json.Value -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flagsValue url navKey =
     let
-        settings =
-            case Decode.decodeValue Settings.decoder flagsValue of
-                Ok s ->
-                    s
-
-                Err _ ->
-                    Settings.default
+        ( settings, windowSize ) =
+            let
+                rootDecoder =
+                    Decode.map2 Tuple.pair
+                        (Decode.field "settings" (Decode.nullable Decode.string))
+                        (Decode.field "windowSize" WindowSize.decoder)
+            in
+            Decode.decodeValue rootDecoder flagsValue
+                |> Result.map (Tuple.mapFirst (Maybe.map (Decode.decodeString Settings.decoder) >> Maybe.withDefault (Ok Settings.default) ))
+                |> Result.withDefault ( Ok Settings.default, WindowSize 0 0 )
+                |> Tuple.mapFirst (Result.withDefault Settings.default)
     in
-    changeRouteTo (Route.fromUrl url) (Redirect (Session.fromSettings navKey settings))
+    changeRouteTo (Route.fromUrl url) (Redirect (Session navKey windowSize settings))
 
 
 type Msg
@@ -66,6 +83,7 @@ type Msg
     | GotHomeMsg Home.Msg
     | GotAboutMsg About.Msg
     | GotSession Session
+    | Resize WindowSize
 
 
 changeRouteTo : Maybe Route -> Model -> ( Model, Cmd Msg )
@@ -79,7 +97,7 @@ changeRouteTo maybeRoute model =
             ( NotFound session, Cmd.none )
 
         Just Route.Root ->
-            ( model, Route.replaceUrl (Session.toKey session) Route.Home )
+            ( model, Route.replaceUrl session.navKey Route.Home )
 
         Just Route.About ->
             About.init session |> updateWith About GotAboutMsg model
@@ -95,7 +113,7 @@ update msg model =
             case urlRequest of
                 Browser.Internal url ->
                     ( model
-                    , Nav.pushUrl (Session.toKey (toSession model)) (Url.toString url)
+                    , Nav.pushUrl (toSession model).navKey (Url.toString url)
                     )
 
                 Browser.External href ->
@@ -106,12 +124,17 @@ update msg model =
         ( ChangedUrl url, _ ) ->
             changeRouteTo (Route.fromUrl url) model
 
+        ( Resize newSize, _ ) ->
+            ( withSession model (Session.withSize (toSession model) newSize)
+            , Cmd.none
+            )
+
         ( GotHomeMsg subMsg, Home home ) ->
             Home.update subMsg home |> updateWith Home GotHomeMsg model
 
         ( GotSession session, Redirect _ ) ->
             ( Redirect session
-            , Route.replaceUrl (Session.toKey session) Route.Home
+            , Route.replaceUrl session.navKey Route.Home
             )
 
         ( _, _ ) ->
@@ -119,7 +142,7 @@ update msg model =
 
 
 updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
-updateWith toModel toMsg model ( subModel, subCmd ) =
+updateWith toModel toMsg _ ( subModel, subCmd ) =
     ( toModel subModel
     , Cmd.map toMsg subCmd
     )
@@ -129,12 +152,15 @@ view : Model -> Document Msg
 view model =
     let
         theme =
-            (Session.toSettings (toSession model)).theme
+            (toSession model).settings.theme
+
+        windowWidth =
+            (toSession model).windowSize.width
 
         viewPage page toMsg config =
             let
                 { title, body } =
-                    Page.view theme page config
+                    Page.view theme windowWidth page config
             in
             { title = title
             , body = List.map (Html.map toMsg) body
@@ -142,10 +168,10 @@ view model =
     in
     case model of
         Redirect _ ->
-            Page.view theme Page.Other Blank.view
+            Page.view theme windowWidth Page.Other Blank.view
 
         NotFound _ ->
-            Page.view theme Page.Other NotFound.view
+            Page.view theme windowWidth Page.Other NotFound.view
 
         Home home ->
             viewPage Page.Home GotHomeMsg (Home.view theme home)
@@ -156,18 +182,28 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    case model of
-        NotFound _ ->
-            Sub.none
+    let
+        modelSubs =
+            case model of
+                NotFound _ ->
+                    Sub.none
 
-        Redirect session ->
-            Sub.none
+                Redirect _ ->
+                    Sub.none
 
-        Home home ->
-            Sub.map GotHomeMsg (Home.subscriptions home)
+                Home home ->
+                    Sub.map GotHomeMsg (Home.subscriptions home)
 
-        About about ->
-            Sub.map GotAboutMsg (About.subscriptions about)
+                About about ->
+                    Sub.map GotAboutMsg (About.subscriptions about)
+
+        compose21 f g a b =
+            g (f a b)
+    in
+    Sub.batch
+        [ modelSubs
+        , Browser.Events.onResize (compose21 WindowSize Resize)
+        ]
 
 
 main =

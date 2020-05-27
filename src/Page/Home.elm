@@ -1,9 +1,10 @@
-module Page.Home exposing (Model, Msg, init, subscriptions, toSession, update, view)
+module Page.Home exposing (Model, Msg, init, subscriptions, toSession, update, view, withSession)
 
+import Arithmetic
 import Asset.Image as Image
 import AssocList as Dict exposing (Dict)
 import Dropdown exposing (Msg(..))
-import Element exposing (Element, centerX, centerY, clip, column, el, fill, fillPortion, height, maximum, padding, paddingEach, px, row, spacing, text, width)
+import Element exposing (Element, centerX, centerY, clip, column, el, fill, fillPortion, height, maximum, padding, paddingEach, paddingXY, px, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -38,11 +39,6 @@ flowerKindGenerator kinds =
     in
     List.foldl folder (Random.constant []) kinds
         |> Random.map Dict.fromList
-
-
-type BreedingResultDisplayMode
-    = ByGenes
-    | ByColor
 
 
 type SourcedFlower
@@ -95,8 +91,12 @@ type alias Model =
     , genesA : Dict FlowerKind DominantList
     , genesB : Dict FlowerKind DominantList
     , colorsToUse : Dict FlowerKind (Maybe FlowerColor)
-    , breedingResultDisplayMode : BreedingResultDisplayMode
     }
+
+
+withSession : Model -> Session -> Model
+withSession model newSession =
+    { model | session = newSession }
 
 
 toSession : Model -> Session
@@ -121,7 +121,6 @@ init session =
       , genesA = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , genesB = Dict.fromList (List.map toPair Flower.Kind.allKinds)
       , colorsToUse = Dict.empty
-      , breedingResultDisplayMode = ByGenes
       }
     , Random.generate GotRandom (flowerKindGenerator Flower.Kind.allKinds)
     )
@@ -133,7 +132,6 @@ type Msg
     | DropdownMsgB (Dropdown.Msg SourcedFlower)
     | SetGenesA FlowerKind DominantList
     | SetGenesB FlowerKind DominantList
-    | SetBreedingResultDisplayMode BreedingResultDisplayMode
     | GotRandom (Dict FlowerKind (Maybe FlowerColor))
 
 
@@ -237,11 +235,6 @@ update msg model =
                 | genesB = Dict.insert kind genes model.genesB
                 , dropdownModelB = Dropdown.update (SetSelected (flowerSelectionKind flower)) model.dropdownModelB
               }
-            , Cmd.none
-            )
-
-        SetBreedingResultDisplayMode mode ->
-            ( { model | breedingResultDisplayMode = mode }
             , Cmd.none
             )
 
@@ -355,33 +348,58 @@ maybeViewGenePicker theme setGenesToKind maybeSelectedFlower presetToMsg presetM
     maybeSelectedFlower |> Maybe.map viewGenePicker |> Maybe.withDefault Element.none
 
 
-maybeViewBreedingResults : Theme -> Maybe Flower -> Maybe Flower -> Element msg
-maybeViewBreedingResults theme maybeFlowerA maybeFlowerB =
+maybeViewBreedingResults : Theme -> Int -> Maybe Flower -> Maybe Flower -> Element msg
+maybeViewBreedingResults theme deviceWidth maybeFlowerA maybeFlowerB =
     let
-        viewOffspring { weight, flower } =
-            el [ width (fillPortion 1) ] <|
+        horizontalOffspringSpacing =
+            15
+
+        ( toName, offspringWidth ) =
+            if deviceWidth < 600 then
+                ( Flower.toNameWithGenes >> Just, 300 )
+
+            else
+                ( Flower.toFullName, 350 )
+
+        rowLength =
+            max ((deviceWidth - 60) // (offspringWidth + horizontalOffspringSpacing)) 1
+
+        simplify numerator denominator =
+            let
+                gcd =
+                    Arithmetic.gcd numerator denominator
+            in
+            ( numerator // gcd, denominator // gcd )
+
+        viewChance count total =
+            let
+                ( numerator, denominator ) =
+                    simplify count total
+            in
+            el [ centerX ] (text (String.fromInt numerator ++ "/" ++ String.fromInt denominator))
+
+        viewOffspring { total, flower, count } =
+            el [ width (px offspringWidth) ] <|
                 row [ width fill, spacing 5, centerX, padding 15, Border.rounded 15, Background.color (Theme.lineColor theme), Font.color (Theme.backgroundColor theme) ]
-                    [ el [ Font.size 24, centerX ] (text (String.fromFloat (weight * 100) ++ "%"))
+                    [ el [ Font.size 24, centerX, width (px 60) ] (viewChance count total)
                     , Image.fromFlower flower
-                        |> Maybe.map (Image.toElement [ centerX, height (px 48) ] "")
+                        |> Maybe.map (Image.toElement [ centerX, height (px 48), width (px 48) ] "")
                         |> Maybe.withDefault Element.none
-                    , Flower.toFullName flower
-                        |> Maybe.map (el [ centerX ] << text)
+                    , toName flower
+                        |> Maybe.map (el [ width fill ] << el [ centerX ] << text)
                         |> Maybe.withDefault Element.none
                     ]
 
         viewOffspringRow offsprings =
-            row [ centerX, width fill, height (fillPortion 1), spacing 50 ]
+            row [ centerX, spacing 25 ]
                 (List.map viewOffspring offsprings)
 
         viewBreedingResults ( flowerA, flowerB ) =
-            el [ paddingEach { top = 0, left = 100, bottom = 25, right = 100 }, Border.rounded 25, width fill, height fill ]
-                (column [ centerX, spacing 15, width fill, height fill ]
-                    (Flower.breed flowerA flowerB
-                        |> Result.map (List.Split.chunksOfLeft 4)
-                        |> Result.map (List.map viewOffspringRow)
-                        |> Result.withDefault []
-                    )
+            column [ paddingXY 30 0, centerX, spacing horizontalOffspringSpacing, width fill, height fill ]
+                (Flower.breed flowerA flowerB
+                    |> Result.map (List.Split.chunksOfLeft rowLength)
+                    |> Result.map (List.map viewOffspringRow)
+                    |> Result.withDefault []
                 )
     in
     Maybe.map2 Tuple.pair maybeFlowerA maybeFlowerB
@@ -430,23 +448,30 @@ view theme model =
                 |> List.map kindPair
                 |> List.reverse
                 |> Dict.fromList
+
+        ( genePickerContainer, genePickerSpacing ) =
+            if model.session.windowSize.width < 800 then
+                ( column, 15 )
+
+            else
+                ( row, 45 )
     in
     { title = "Breeder"
     , content =
-        el [ centerX, centerY, spacing 30, width fill, height fill, paddingEach { top = 30, left = 0, bottom = 0, right = 0 } ] <|
+        el [ centerX, centerY, spacing 30, width fill, height fill, paddingEach { top = 30, left = 10, bottom = 10, right = 10 } ] <|
             column [ width fill, height fill, centerX, spacing 30 ]
                 [ row [ centerX, spacing 15 ]
                     [ el [] (text "Select a flower")
                     , el [ width (px 146) ] (Dropdown.view theme dropdownOptions KindDropdownMsg model.kindData)
                     ]
-                , row [ centerX, spacing 45 ]
+                , genePickerContainer [ centerX, spacing genePickerSpacing ]
                     [ maybeViewGenePicker
                         theme
                         SetGenesA
                         maybeFlowerA
                         DropdownMsgA
                         model.dropdownModelA
-                    , text "bred with a "
+                    , el [ centerX ] (text "bred with a ")
                     , maybeViewGenePicker
                         theme
                         SetGenesB
@@ -455,7 +480,7 @@ view theme model =
                         model.dropdownModelB
                     ]
                 , el [ centerX ] (text "will produce")
-                , maybeViewBreedingResults theme maybeFlowerA maybeFlowerB
+                , maybeViewBreedingResults theme model.session.windowSize.width maybeFlowerA maybeFlowerB
                 ]
     }
 

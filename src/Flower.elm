@@ -11,7 +11,6 @@ module Flower exposing
     , getSeedColors
     , getSeedFlower
     , toFullName
-    , toNameWithColor
     , toNameWithGenes
     )
 
@@ -39,15 +38,10 @@ breedRaw a b =
 
 
 type alias Offspring =
-    { weight : Float, flower : Flower }
+    { total : Int, flower : Flower, count : Int }
 
 
-toOffspring : Float -> Flower -> Float -> Offspring
-toOffspring total flower count =
-    Offspring (count / Maybe.withDefault 0 (String.toFloat (String.fromFloat total))) flower
-
-
-addCount : Flower -> Dict Flower Float -> Dict Flower Float
+addCount : Flower -> Dict Flower Int -> Dict Flower Int
 addCount flower counts =
     Dict.insert flower (Maybe.withDefault 0 (Dict.get flower counts) + 1) counts
 
@@ -56,7 +50,7 @@ groupByCount : List Flower -> List Offspring
 groupByCount flowers =
     Dict.values
         (Dict.map
-            (toOffspring (toFloat (List.length flowers)))
+            (Offspring (List.length flowers))
             (List.foldl addCount Dict.empty flowers)
         )
 
@@ -74,15 +68,6 @@ getGeneCount kind =
 
         _ ->
             3
-
-
-toNameWithColor : Flower -> Maybe String
-toNameWithColor flower =
-    let
-        formatName color =
-            Flower.Color.toString color ++ " " ++ Flower.Kind.toString flower.kind
-    in
-    getColor flower |> Maybe.map formatName
 
 
 toNameWithGenes : Flower -> String
