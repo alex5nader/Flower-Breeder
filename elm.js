@@ -5278,10 +5278,10 @@ var $author$project$Flower$Flower = F2(
 var $author$project$Page$Home$GotRandom = function (a) {
 	return {$: 6, a: a};
 };
-var $author$project$Page$Home$Preset = function (a) {
+var $author$project$Flower$Kind$Rose = 0;
+var $author$project$Page$Home$Seed = function (a) {
 	return {$: 0, a: a};
 };
-var $author$project$Flower$Kind$Rose = 0;
 var $author$project$Genetics$Zero = 0;
 var $author$project$Flower$Kind$Cosmos = 3;
 var $author$project$Flower$Kind$Hyacinth = 5;
@@ -5891,10 +5891,10 @@ var $author$project$Page$Home$init = function (session) {
 			aP: 0,
 			az: $pzp1997$assoc_list$AssocList$empty,
 			D: $author$project$Dropdown$init(
-				$author$project$Page$Home$Preset(
+				$author$project$Page$Home$Seed(
 					defaultFlower(0))),
 			E: $author$project$Dropdown$init(
-				$author$project$Page$Home$Preset(
+				$author$project$Page$Home$Seed(
 					defaultFlower(0))),
 			U: $pzp1997$assoc_list$AssocList$fromList(
 				A2($elm$core$List$map, toPair, $author$project$Flower$Kind$allKinds)),
@@ -6865,7 +6865,10 @@ var $elm$url$Url$toString = function (url) {
 					_Utils_ap(http, url.bx)),
 				url.bN)));
 };
-var $author$project$Page$Home$Custom = function (a) {
+var $author$project$Page$Home$Crossbred = function (a) {
+	return {$: 2, a: a};
+};
+var $author$project$Page$Home$Island = function (a) {
 	return {$: 1, a: a};
 };
 var $author$project$Dropdown$SetSelected = function (a) {
@@ -9370,24 +9373,6 @@ var $author$project$Flower$getColor = function (flower) {
 			}
 	}
 };
-var $author$project$Page$Home$getFlowerSelectionDataGenes = function (data) {
-	if (!data.$) {
-		var f = data.a;
-		return f.a;
-	} else {
-		var f = data.a;
-		return f.a;
-	}
-};
-var $author$project$Page$Home$getFlowerSelectionDataKind = function (data) {
-	if (!data.$) {
-		var f = data.a;
-		return f.dj;
-	} else {
-		var f = data.a;
-		return f.dj;
-	}
-};
 var $author$project$Genetics$One = 1;
 var $author$project$Genetics$Two = 2;
 var $author$project$Flower$getIslandFlower = F2(
@@ -9850,6 +9835,32 @@ var $elm$core$Maybe$map = F2(
 			return $elm$core$Maybe$Nothing;
 		}
 	});
+var $author$project$Page$Home$sourcedFlowerToGenes = function (data) {
+	switch (data.$) {
+		case 0:
+			var f = data.a;
+			return f.a;
+		case 1:
+			var f = data.a;
+			return f.a;
+		default:
+			var f = data.a;
+			return f.a;
+	}
+};
+var $author$project$Page$Home$sourcedFlowerToKind = function (data) {
+	switch (data.$) {
+		case 0:
+			var f = data.a;
+			return f.dj;
+		case 1:
+			var f = data.a;
+			return f.dj;
+		default:
+			var f = data.a;
+			return f.dj;
+	}
+};
 var $author$project$Dropdown$update = F2(
 	function (msg, model) {
 		if (!msg.$) {
@@ -9888,8 +9899,8 @@ var $author$project$Page$Home$update = F2(
 									D: A2($author$project$Dropdown$update, subMsg, model.D),
 									U: A3(
 										$pzp1997$assoc_list$AssocList$insert,
-										$author$project$Page$Home$getFlowerSelectionDataKind(data),
-										$author$project$Page$Home$getFlowerSelectionDataGenes(data),
+										$author$project$Page$Home$sourcedFlowerToKind(data),
+										$author$project$Page$Home$sourcedFlowerToGenes(data),
 										model.U)
 								});
 						} else {
@@ -9913,8 +9924,8 @@ var $author$project$Page$Home$update = F2(
 									E: A2($author$project$Dropdown$update, subMsg, model.E),
 									V: A3(
 										$pzp1997$assoc_list$AssocList$insert,
-										$author$project$Page$Home$getFlowerSelectionDataKind(data),
-										$author$project$Page$Home$getFlowerSelectionDataGenes(data),
+										$author$project$Page$Home$sourcedFlowerToKind(data),
+										$author$project$Page$Home$sourcedFlowerToGenes(data),
 										model.V)
 								});
 						} else {
@@ -9954,7 +9965,7 @@ var $author$project$Page$Home$update = F2(
 						$elm$core$Maybe$Just(genes),
 						correspondingIslandGenes)) && (!_Utils_eq(
 						$elm$core$Maybe$Just(genes),
-						correspondingSeedGenes))) ? $author$project$Page$Home$Custom : $author$project$Page$Home$Preset;
+						correspondingSeedGenes))) ? $author$project$Page$Home$Crossbred : $author$project$Page$Home$Seed;
 				}();
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -9992,11 +10003,11 @@ var $author$project$Page$Home$update = F2(
 							$elm$core$Maybe$andThen,
 							$author$project$Flower$getSeedFlower(kind),
 							color));
-					return ((!_Utils_eq(
+					return _Utils_eq(
 						$elm$core$Maybe$Just(genes),
-						correspondingIslandGenes)) && (!_Utils_eq(
+						correspondingSeedGenes) ? $author$project$Page$Home$Seed : (_Utils_eq(
 						$elm$core$Maybe$Just(genes),
-						correspondingSeedGenes))) ? $author$project$Page$Home$Custom : $author$project$Page$Home$Preset;
+						correspondingIslandGenes) ? $author$project$Page$Home$Island : $author$project$Page$Home$Crossbred);
 				}();
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -16891,6 +16902,16 @@ var $mdgriffith$elm_ui$Internal$Flag$fontAlignment = $mdgriffith$elm_ui$Internal
 var $mdgriffith$elm_ui$Element$Font$center = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$fontAlignment, $mdgriffith$elm_ui$Internal$Style$classes.d3);
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clip = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.cJ);
+var $author$project$Page$Home$getFlowerSource = function (data) {
+	switch (data.$) {
+		case 0:
+			return 'Seed';
+		case 1:
+			return 'Island';
+		default:
+			return 'Custom';
+	}
+};
 var $author$project$Dropdown$SetVisibility = function (a) {
 	return {$: 0, a: a};
 };
@@ -17007,7 +17028,8 @@ var $author$project$Dropdown$view = F4(
 				[
 					$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$fill),
 					$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
-					$mdgriffith$elm_ui$Element$centerX
+					$mdgriffith$elm_ui$Element$centerX,
+					$mdgriffith$elm_ui$Element$centerY
 				]));
 		var innerAttrs = A2(
 			$elm$core$List$cons,
@@ -17183,62 +17205,63 @@ var $author$project$Page$Home$maybeViewGenePicker = F5(
 			});
 		var viewGenePicker = function (selectedFlower) {
 			var options = function () {
-				var viewPreset = function (color) {
-					var label = $mdgriffith$elm_ui$Element$text(
-						$author$project$Flower$Color$toString(color) + (' ' + $author$project$Flower$Kind$toString(selectedFlower.dj)));
-					return A3($author$project$Page$Home$viewKind, label, selectedFlower.dj, color);
-				};
-				var toPresetPair = function (flower) {
-					return _Utils_Tuple2(
-						$author$project$Page$Home$Preset(flower),
-						_Utils_Tuple2(
+				var viewPreset = F2(
+					function (source, color) {
+						var label = $mdgriffith$elm_ui$Element$text(
 							A2(
-								$elm$core$Maybe$withDefault,
-								$mdgriffith$elm_ui$Element$none,
+								$elm$core$String$join,
+								' ',
+								_List_fromArray(
+									[
+										$author$project$Page$Home$getFlowerSource(source),
+										$author$project$Flower$Color$toString(color),
+										$author$project$Flower$Kind$toString(selectedFlower.dj)
+									])));
+						return A3($author$project$Page$Home$viewKind, label, selectedFlower.dj, color);
+					});
+				var toSourcedPair = F2(
+					function (source, flower) {
+						var sourcedFlower = source(flower);
+						return _Utils_Tuple2(
+							sourcedFlower,
+							_Utils_Tuple2(
 								A2(
-									$elm$core$Maybe$map,
-									viewPreset,
-									$author$project$Flower$getColor(flower))),
-							true));
-				};
+									$elm$core$Maybe$withDefault,
+									$mdgriffith$elm_ui$Element$none,
+									A2(
+										$elm$core$Maybe$map,
+										viewPreset(sourcedFlower),
+										$author$project$Flower$getColor(flower))),
+								function () {
+									if (sourcedFlower.$ === 2) {
+										return false;
+									} else {
+										return true;
+									}
+								}()));
+					});
 				var shopOptions = A2(
 					$elm$core$List$filterMap,
 					A2(
 						$elm$core$Basics$composeR,
 						$author$project$Flower$getSeedFlower(selectedFlower.dj),
-						$elm$core$Maybe$map(toPresetPair)),
+						$elm$core$Maybe$map(
+							toSourcedPair($author$project$Page$Home$Seed))),
 					$author$project$Flower$getSeedColors(selectedFlower.dj));
 				var islandOptions = A2(
 					$elm$core$List$filterMap,
 					A2(
 						$elm$core$Basics$composeR,
 						$author$project$Flower$getIslandFlower(selectedFlower.dj),
-						$elm$core$Maybe$map(toPresetPair)),
+						$elm$core$Maybe$map(
+							toSourcedPair($author$project$Page$Home$Island))),
 					$author$project$Flower$getIslandColors(selectedFlower.dj));
-				var customOption = function (color) {
-					return _Utils_Tuple2(
-						A3(
-							$author$project$Page$Home$viewKind,
-							$mdgriffith$elm_ui$Element$text(
-								'Custom ' + $author$project$Flower$Kind$toString(selectedFlower.dj)),
-							selectedFlower.dj,
-							color),
-						false);
-				};
-				var maybeCustomOption = A2(
-					$elm$core$Maybe$map,
-					customOption,
-					$author$project$Flower$getColor(selectedFlower));
+				var customOption = A2(toSourcedPair, $author$project$Page$Home$Crossbred, selectedFlower);
 				return $pzp1997$assoc_list$AssocList$fromList(
 					$elm$core$List$reverse(
 						A2(
 							$elm$core$List$cons,
-							_Utils_Tuple2(
-								$author$project$Page$Home$Custom(selectedFlower),
-								A2(
-									$elm$core$Maybe$withDefault,
-									_Utils_Tuple2($mdgriffith$elm_ui$Element$none, false),
-									maybeCustomOption)),
+							customOption,
 							_Utils_ap(shopOptions, islandOptions))));
 			}();
 			return A2(
@@ -17256,7 +17279,7 @@ var $author$project$Page$Home$maybeViewGenePicker = F5(
 								$mdgriffith$elm_ui$Element$centerX,
 								$mdgriffith$elm_ui$Element$centerY,
 								$mdgriffith$elm_ui$Element$width(
-								$mdgriffith$elm_ui$Element$px(225))
+								$mdgriffith$elm_ui$Element$px(300))
 							]),
 						A4($author$project$Dropdown$view, theme, options, presetToMsg, presetModel)),
 						A2(
