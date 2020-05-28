@@ -1,7 +1,7 @@
 module Dropdown exposing (Model, Msg(..), init, update, view)
 
 import AssocList as Dict exposing (Dict)
-import Element exposing (Attribute, Element, centerX, centerY, clip, column, el, fill, height, px, width)
+import Element exposing (Attribute, Element, centerX, centerY, clip, column, el, fill, height, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)

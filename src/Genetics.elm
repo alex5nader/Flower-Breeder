@@ -3,13 +3,10 @@ module Genetics exposing
     , DominantList
     , Gene(..)
     , breed
-    , dominantCountDecoder
     , toCombinations
-    , toInt
     , toString
     )
 
-import Json.Decode as Decode exposing (Decoder)
 import List
 import List.Extra exposing (cartesianProduct)
 
@@ -23,26 +20,6 @@ type DominantCount
     = Zero
     | One
     | Two
-
-
-dominantCountDecoder : Decoder DominantCount
-dominantCountDecoder =
-    let
-        decodeCount countInt =
-            case countInt of
-                0 ->
-                    Decode.succeed Zero
-
-                1 ->
-                    Decode.succeed One
-
-                2 ->
-                    Decode.succeed Two
-
-                _ ->
-                    Decode.fail "Invalid DominantCount"
-    in
-    Decode.int |> Decode.andThen decodeCount
 
 
 toString : DominantCount -> String
@@ -73,19 +50,6 @@ toGenes pair =
 
         Two ->
             [ Dominant, Dominant ]
-
-
-toInt : DominantCount -> Int
-toInt count =
-    case count of
-        Zero ->
-            0
-
-        One ->
-            1
-
-        Two ->
-            2
 
 
 toDominantCount : ( Gene, Gene ) -> DominantCount

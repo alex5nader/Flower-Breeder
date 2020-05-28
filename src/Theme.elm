@@ -1,36 +1,13 @@
-module Theme exposing (Theme(..), backgroundColor, decoder, lineColor, toJson, toString)
+module Theme exposing (Theme(..), backgroundColor, decoder, lineColor)
 
 import Element exposing (Attribute, Color, rgb255)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode exposing (Value)
-
-
-
--- https://coolors.co/caffb9-66a182-ffffff-000000-323232-dddddd
 
 
 type Theme
-    = Nature -- https://coolors.co/2e4057-66a182-caffb9-aef78e-c0d461
+    = Nature
     | Dark
     | Light
-
-
-toString : Theme -> String
-toString theme =
-    case theme of
-        Nature ->
-            "Nature"
-
-        Dark ->
-            "Dark"
-
-        Light ->
-            "Light"
-
-
-toJson : Theme -> Value
-toJson theme =
-    Encode.string (toString theme)
 
 
 decoder : Decoder Theme

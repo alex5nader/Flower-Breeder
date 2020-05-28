@@ -108,7 +108,6 @@ init : Session -> ( Model, Cmd Msg )
 init session =
     let
         defaultFlower kind =
-            -- can never fail
             Flower kind (List.repeat (Flower.getGeneCount kind) Zero)
 
         toPair kind =
@@ -390,9 +389,9 @@ maybeViewBreedingResults theme deviceWidth maybeFlowerA maybeFlowerB =
                         |> Maybe.withDefault Element.none
                     ]
 
-        viewOffspringRow offsprings =
+        viewOffspringRow offspringList =
             row [ centerX, spacing 25 ]
-                (List.map viewOffspring offsprings)
+                (List.map viewOffspring offspringList)
 
         viewBreedingResults ( flowerA, flowerB ) =
             column [ paddingXY 30 0, centerX, spacing horizontalOffspringSpacing, width fill, height fill ]
