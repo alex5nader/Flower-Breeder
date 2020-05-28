@@ -17184,7 +17184,7 @@ var $author$project$Page$Home$maybeViewBreedingResults = F4(
 								toName(flower)))
 						])));
 		};
-		var viewOffspringRow = function (offsprings) {
+		var viewOffspringRow = function (offspringList) {
 			return A2(
 				$mdgriffith$elm_ui$Element$row,
 				_List_fromArray(
@@ -17192,7 +17192,7 @@ var $author$project$Page$Home$maybeViewBreedingResults = F4(
 						$mdgriffith$elm_ui$Element$centerX,
 						$mdgriffith$elm_ui$Element$spacing(25)
 					]),
-				A2($elm$core$List$map, viewOffspring, offsprings));
+				A2($elm$core$List$map, viewOffspring, offspringList));
 		};
 		var viewBreedingResults = function (_v1) {
 			var flowerA = _v1.a;
